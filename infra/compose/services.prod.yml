@@ -1,0 +1,407 @@
+# Production Compose: app images come from GHCR (no local build).
+# Keep infrastructure service definitions aligned with services.dev.yml.
+name: fiapf3-prod
+
+services:
+  postgresql:
+    # LTS used to run the project: PostgreSQL 16 (community support until Nov 2028). Tag postgres:16-alpine tracks 16.x.
+    image: postgres:16-alpine
+    container_name: fiapf3-prod-postgresql
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 512m
+    networks:
+      - fiapf3-prod-net
+    volumes:
+      - fiapf3-prod-postgresql-data:/var/lib/postgresql/data
+      - ../confs/postgresql/initdb.d:/docker-entrypoint-initdb.d:ro
+    environment:
+      POSTGRES_USER: fiapf3
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fiapf3}
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+      TZ: America/Sao_Paulo
+    command:
+      - postgres
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - max_connections=80
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - listen_addresses=*
+      - -c
+      - track_activities=on
+      - -c
+      - track_counts=on
+      - -c
+      - track_io_timing=on
+      - -c
+      - track_functions=all
+      - -c
+      - track_activity_query_size=2048
+      - -c
+      - log_statement=none
+      - -c
+      - log_min_duration_statement=1000
+      - -c
+      - log_checkpoints=on
+      - -c
+      - log_connections=on
+      - -c
+      - log_disconnections=on
+      - -c
+      - log_lock_waits=on
+      - -c
+      - log_temp_files=10485760
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.max=1000
+      - -c
+      - pg_stat_statements.track=all
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fiapf3 -d postgres"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    # LTS used to run the project: Redis 7 (Open Source 7.x; Cloud/OSS 7.2 and 7.4 are the extended/LTS lines). Tag redis:7-alpine.
+    image: redis:7-alpine
+    container_name: fiapf3-prod-redis
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 256m
+    networks:
+      - fiapf3-prod-net
+    volumes:
+      - fiapf3-prod-redis-data:/data
+    environment:
+      TZ: America/Sao_Paulo
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:-fiapf3}",
+      ]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "--no-auth-warning",
+          "-a",
+          "${REDIS_PASSWORD:-fiapf3}",
+          "ping",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  garage:
+    # Version used to run the project (no official LTS): Garage v2.3.0.
+    image: dxflrs/garage:v2.3.0
+    container_name: fiapf3-prod-garage
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 512m
+    networks:
+      - fiapf3-prod-net
+    volumes:
+      - ../confs/garage/garage.toml:/etc/garage.toml:ro
+      - fiapf3-prod-garage-meta:/var/lib/garage/meta
+      - fiapf3-prod-garage-data:/var/lib/garage/data
+    environment:
+      GARAGE_DEFAULT_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
+      GARAGE_DEFAULT_SECRET_KEY: ${GARAGE_SECRET_KEY}
+      GARAGE_DEFAULT_BUCKET: ${GARAGE_BUCKET:-fiapf3-vehicle-photos}
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-fiapf3-dev-garage-admin-token-change-me}
+      GARAGE_METRICS_TOKEN: ${GARAGE_METRICS_TOKEN:-fiapf3-dev-garage-metrics-token-change-me}
+      TZ: America/Sao_Paulo
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  keycloak:
+    # Version used to run the project (no community LTS): Keycloak 26.7.1.
+    image: quay.io/keycloak/keycloak:26.7.1
+    platform: linux/amd64
+    container_name: fiapf3-prod-keycloak
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    networks:
+      - fiapf3-prod-net
+    volumes:
+      - fiapf3-prod-keycloak-data:/opt/keycloak/data
+      # Realm bootstrap (roles, clients). Imported only when realm does not exist yet.
+      - ../confs/keycloak/import:/opt/keycloak/data/import:ro
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgresql:5432/keycloak
+      KC_DB_USERNAME: fiapf3
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-fiapf3}
+      # Lean pool: keep a few warm connections; grow only under load.
+      KC_DB_POOL_INITIAL_SIZE: 2
+      KC_DB_POOL_MIN_SIZE: 2
+      KC_DB_POOL_MAX_SIZE: 10
+      # Log SQL only when slower than 5s; silence Hibernate chatter.
+      KC_DB_LOG_SLOW_QUERIES_THRESHOLD: 5000
+      KC_LOG_LEVEL: info
+      KC_LOG_LEVEL_ORG_HIBERNATE: warn
+      KC_LOG_LEVEL_ORG_HIBERNATE_SQL: off
+      KC_LOG_LEVEL_ORG_HIBERNATE_ORM_JDBC_BIND: off
+      KC_HTTP_ENABLED: "true"
+      # Frontend/issuer stays internal for account/dealership; Admin Console via nginx host keycloak.*.
+      KC_HOSTNAME: http://keycloak:8080
+      KC_HOSTNAME_ADMIN: ${KEYCLOAK_ADMIN_URL}
+      KC_HOSTNAME_STRICT: "true"
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "false"
+      KC_PROXY_HEADERS: xforwarded
+      KC_METRICS_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # Resolved inside fiap-car-sales-realm.json via ${...} placeholders on first import.
+      KEYCLOAK_ACCOUNT_CLIENT_SECRET: ${KEYCLOAK_ACCOUNT_CLIENT_SECRET}
+      KEYCLOAK_DEALERSHIP_CLIENT_SECRET: ${KEYCLOAK_DEALERSHIP_CLIENT_SECRET}
+      KEYCLOAK_PAYMENT_CLIENT_SECRET: ${KEYCLOAK_PAYMENT_CLIENT_SECRET}
+      JAVA_OPTS_APPEND: >-
+        -XX:InitialRAMPercentage=40
+        -XX:MaxRAMPercentage=70
+        -XX:MaxHeapFreeRatio=30
+        -XX:MinHeapFreeRatio=10
+        -Djava.security.egd=file:/dev/urandom
+      TZ: America/Sao_Paulo
+    command: ["start", "--import-realm"]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          '{ [ -f /tmp/HealthCheck.java ] || echo "public class HealthCheck { public static void main(String[] args) throws java.lang.Throwable { System.exit(java.net.HttpURLConnection.HTTP_OK == ((java.net.HttpURLConnection)new java.net.URL(args[0]).openConnection()).getResponseCode() ? 0 : 1); } }" > /tmp/HealthCheck.java; } && java /tmp/HealthCheck.java http://127.0.0.1:9000/health/ready',
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 90s
+
+  account:
+    # LTS used to run the project: Eclipse Temurin Java 21 (Dockerfile runtime; Temurin support until at least Dec 2029).
+    image: ghcr.io/${GHCR_OWNER}/fiapf3-account:${IMAGE_TAG:-latest}
+    pull_policy: always
+    container_name: fiapf3-prod-account
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 1g
+    networks:
+      - fiapf3-prod-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8080
+      TZ: America/Sao_Paulo
+      DB_URL: jdbc:postgresql://postgresql:5432/fiapf3_account
+      DB_USERNAME: fiapf3
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-fiapf3}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-fiapf3}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://keycloak:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-fiap-car-sales}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_ACCOUNT_CLIENT_ID:-account-api}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_ACCOUNT_CLIENT_SECRET}
+      ACCOUNT_S2S_ALLOWED_CLIENT_IDS: ${ACCOUNT_S2S_ALLOWED_CLIENT_IDS:-dealership-api}
+      ACCOUNT_BOOTSTRAP_ADMIN_EMAIL: ${ACCOUNT_BOOTSTRAP_ADMIN_EMAIL:-admin@fiap-car-sales.com}
+      ACCOUNT_BOOTSTRAP_ADMIN_PASSWORD: ${ACCOUNT_BOOTSTRAP_ADMIN_PASSWORD}
+      ACCOUNT_BOOTSTRAP_ADMIN_FULL_NAME: ${ACCOUNT_BOOTSTRAP_ADMIN_FULL_NAME:-Platform Admin}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost}
+      PASSWORD_RECOVERY_URL: ${PASSWORD_RECOVERY_URL:-http://localhost/password-recovery}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      RESEND_FROM: ${RESEND_FROM:-no-reply@fiapf3.local}
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  dealership:
+    # LTS used to run the project: Eclipse Temurin Java 21 (Dockerfile runtime; Temurin support until at least Dec 2029).
+    image: ghcr.io/${GHCR_OWNER}/fiapf3-dealership:${IMAGE_TAG:-latest}
+    pull_policy: always
+    container_name: fiapf3-prod-dealership
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 1g
+    networks:
+      - fiapf3-prod-net
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8080
+      TZ: America/Sao_Paulo
+      DB_URL: jdbc:postgresql://postgresql:5432/fiapf3_dealership
+      DB_USERNAME: fiapf3
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-fiapf3}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-fiapf3}
+      GARAGE_ENDPOINT: ${GARAGE_ENDPOINT:-http://garage:3900}
+      GARAGE_PUBLIC_ENDPOINT: ${GARAGE_PUBLIC_ENDPOINT:-http://localhost}
+      GARAGE_REGION: garage
+      GARAGE_BUCKET: ${GARAGE_BUCKET:-fiapf3-vehicle-photos}
+      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
+      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY}
+      UPLOAD_INTENT_SECRET: ${UPLOAD_INTENT_SECRET}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://keycloak:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-fiap-car-sales}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_DEALERSHIP_CLIENT_ID:-dealership-api}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_DEALERSHIP_CLIENT_SECRET}
+      ACCOUNT_API_URL: ${ACCOUNT_API_URL:-http://account:8080}
+      DEALERSHIP_PAYMENT_ALLOWED_CLIENT_IDS: ${DEALERSHIP_PAYMENT_ALLOWED_CLIENT_IDS:-payment-processor}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost}
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      garage:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      account:
+        condition: service_started
+
+  nginx:
+    # Version used to run the project: nginx 1.30 Alpine (stable even branch; digest already pinned).
+    image: nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
+    container_name: fiapf3-prod-nginx
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 128m
+    networks:
+      - fiapf3-prod-net
+    ports:
+      - "80:80"
+    volumes:
+      - ../confs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../confs/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      account:
+        condition: service_started
+      dealership:
+        condition: service_started
+      garage:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  prometheus:
+    # Version used to run the project (no official LTS): Prometheus v3.2.1.
+    image: prom/prometheus:v3.2.1
+    platform: linux/amd64
+    container_name: fiapf3-prod-prometheus
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 512m
+    networks:
+      - fiapf3-prod-net
+    volumes:
+      - ../confs/prometheus:/etc/prometheus:ro
+      - fiapf3-prod-prometheus-data:/prometheus
+    environment:
+      TZ: America/Sao_Paulo
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=30d
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --web.console.templates=/etc/prometheus/consoles
+      - --web.enable-lifecycle
+    depends_on:
+      account:
+        condition: service_started
+      dealership:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:9090/-/healthy >/dev/null || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  grafana:
+    # Version used to run the project (no official LTS): Grafana 12.4.8 (last minor of 12; patch support until May 2027).
+    image: grafana/grafana:12.4.8
+    platform: linux/amd64
+    container_name: fiapf3-prod-grafana
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 512m
+    networks:
+      - fiapf3-prod-net
+    volumes:
+      - fiapf3-prod-grafana-data:/var/lib/grafana
+      - ../confs/grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-fiapf3}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_USERS_ALLOW_ORG_CREATE: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_SERVER_ROOT_URL: ${GF_SERVER_ROOT_URL:-http://grafana.localhost/}
+      GF_SERVER_SERVE_FROM_SUB_PATH: "false"
+      TZ: America/Sao_Paulo
+    depends_on:
+      prometheus:
+        condition: service_healthy
+
+networks:
+  fiapf3-prod-net:
+    driver: bridge
+    name: fiapf3-prod-net
+
+volumes:
+  fiapf3-prod-postgresql-data:
+    name: fiapf3-prod-postgresql-data
+  fiapf3-prod-redis-data:
+    name: fiapf3-prod-redis-data
+  fiapf3-prod-garage-meta:
+    name: fiapf3-prod-garage-meta
+  fiapf3-prod-garage-data:
+    name: fiapf3-prod-garage-data
+  fiapf3-prod-keycloak-data:
+    name: fiapf3-prod-keycloak-data
+  fiapf3-prod-prometheus-data:
+    name: fiapf3-prod-prometheus-data
+  fiapf3-prod-grafana-data:
+    name: fiapf3-prod-grafana-data

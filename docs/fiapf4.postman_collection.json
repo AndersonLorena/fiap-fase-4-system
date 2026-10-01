@@ -1,0 +1,1290 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "FIAP F3 APIs",
+		"description": "All account-api and dealership-api routes via the local Nginx gateway.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{accessToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "accountBaseUrl",
+			"value": "http://localhost/api/account/v1"
+		},
+		{
+			"key": "dealershipBaseUrl",
+			"value": "http://localhost/api/dealership/v1"
+		},
+		{
+			"key": "email",
+			"value": "admin@fiap-car-sales.com",
+			"description": "Bootstrap admin email (ACCOUNT_BOOTSTRAP_ADMIN_EMAIL)"
+		},
+		{
+			"key": "password",
+			"value": "Fiapf3Admin!",
+			"description": "Bootstrap admin password (ACCOUNT_BOOTSTRAP_ADMIN_PASSWORD)"
+		},
+		{
+			"key": "accessToken",
+			"value": ""
+		},
+		{
+			"key": "refreshToken",
+			"value": ""
+		},
+		{
+			"key": "accountId",
+			"value": "",
+			"description": "Snowflake id from create-account response"
+		},
+		{
+			"key": "brandId",
+			"value": "",
+			"description": "Snowflake id from create-brand response"
+		},
+		{
+			"key": "modelId",
+			"value": "",
+			"description": "Snowflake id from create-model response"
+		},
+		{
+			"key": "colorId",
+			"value": "",
+			"description": "Snowflake id from create-color response"
+		},
+		{
+			"key": "yearId",
+			"value": "",
+			"description": "Snowflake id from create-year response"
+		},
+		{
+			"key": "carId",
+			"value": "",
+			"description": "Snowflake id from create-car response"
+		},
+		{
+			"key": "objectKey",
+			"value": "",
+			"description": "Object key from photo upload-intent response"
+		},
+		{
+			"key": "intentToken",
+			"value": "",
+			"description": "Intent token from photo upload-intent response"
+		},
+		{
+			"key": "paymentCode",
+			"value": "",
+			"description": "Payment code returned by POST /cars/{id}/purchase"
+		},
+		{
+			"key": "paymentAccessToken",
+			"value": "",
+			"description": "Client-credentials access token for payment-processor"
+		},
+		{
+			"key": "paymentClientId",
+			"value": "payment-processor"
+		},
+		{
+			"key": "paymentClientSecret",
+			"value": "fiapf3-payment-client-secret",
+			"description": "Dev secret of the payment-processor Keycloak client"
+		}
+	],
+	"item": [
+		{
+			"name": "Account",
+			"item": [
+				{
+					"name": "Auth",
+					"item": [
+						{
+							"name": "Login",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+								},
+								"url": {
+									"raw": "{{accountBaseUrl}}/auth/login",
+									"host": [
+										"{{accountBaseUrl}}"
+									],
+									"path": [
+										"auth",
+										"login"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"  const json = pm.response.json();",
+											"  if (json.accessToken) {",
+											"    pm.collectionVariables.set('accessToken', json.accessToken);",
+											"  }",
+											"  if (json.refreshToken) {",
+											"    pm.collectionVariables.set('refreshToken', json.refreshToken);",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Refresh Token",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+								},
+								"url": {
+									"raw": "{{accountBaseUrl}}/auth/refresh",
+									"host": [
+										"{{accountBaseUrl}}"
+									],
+									"path": [
+										"auth",
+										"refresh"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"  const json = pm.response.json();",
+											"  if (json.accessToken) {",
+											"    pm.collectionVariables.set('accessToken', json.accessToken);",
+											"  }",
+											"  if (json.refreshToken) {",
+											"    pm.collectionVariables.set('refreshToken', json.refreshToken);",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Accounts",
+					"item": [
+						{
+							"name": "Create Account",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"customer@example.com\",\n  \"password\": \"Str0ng-P@ss\",\n  \"fullName\": \"Jane Doe\",\n  \"type\": \"CUSTOMER\"\n}"
+								},
+								"url": {
+									"raw": "{{accountBaseUrl}}/accounts",
+									"host": [
+										"{{accountBaseUrl}}"
+									],
+									"path": [
+										"accounts"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200 || pm.response.code === 201) {",
+											"  const json = pm.response.json();",
+											"  if (json.accountId != null) {",
+											"    pm.collectionVariables.set('accountId', String(json.accountId));",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Get Current Account",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{accountBaseUrl}}/accounts/me",
+									"host": [
+										"{{accountBaseUrl}}"
+									],
+									"path": [
+										"accounts",
+										"me"
+									]
+								}
+							}
+						},
+						{
+							"name": "Complete Profile",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"document\": \"52998224725\",\n  \"phone\": \"11999998888\"\n}"
+								},
+								"url": {
+									"raw": "{{accountBaseUrl}}/accounts/me/profile",
+									"host": [
+										"{{accountBaseUrl}}"
+									],
+									"path": [
+										"accounts",
+										"me",
+										"profile"
+									]
+								}
+							}
+						},
+						{
+							"name": "Change Password",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"N3w-Str0ng-P@ss\"\n}"
+								},
+								"url": {
+									"raw": "{{accountBaseUrl}}/accounts/password",
+									"host": [
+										"{{accountBaseUrl}}"
+									],
+									"path": [
+										"accounts",
+										"password"
+									]
+								}
+							}
+						},
+						{
+							"name": "Request Password Recovery",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"customer@example.com\"\n}"
+								},
+								"url": {
+									"raw": "{{accountBaseUrl}}/accounts/password-recovery",
+									"host": [
+										"{{accountBaseUrl}}"
+									],
+									"path": [
+										"accounts",
+										"password-recovery"
+									]
+								}
+							}
+						},
+						{
+							"name": "Confirm Password Recovery",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"email\": \"customer@example.com\",\n  \"code\": \"123456\",\n  \"newPassword\": \"newPassword123\"\n}"
+								},
+								"url": {
+									"raw": "{{accountBaseUrl}}/accounts/password-recovery/confirm",
+									"host": [
+										"{{accountBaseUrl}}"
+									],
+									"path": [
+										"accounts",
+										"password-recovery",
+										"confirm"
+									]
+								}
+							}
+						},
+						{
+							"name": "Validate Buyer",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{accountBaseUrl}}/internal/accounts/{{accountId}}/buyer-validation",
+									"host": [
+										"{{accountBaseUrl}}"
+									],
+									"path": [
+										"internal",
+										"accounts",
+										"{{accountId}}",
+										"buyer-validation"
+									]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Dealership",
+			"item": [
+				{
+					"name": "Brands",
+					"item": [
+						{
+							"name": "List Brands",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/brands",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"brands"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Brand",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/brands/{{brandId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"brands",
+										"{{brandId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Brand",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Toyota\"\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/brands",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"brands"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200 || pm.response.code === 201) {",
+											"  const json = pm.response.json();",
+											"  if (json.brandId != null) {",
+											"    pm.collectionVariables.set('brandId', String(json.brandId));",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Update Brand",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Toyota\"\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/brands/{{brandId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"brands",
+										"{{brandId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Brand",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/brands/{{brandId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"brands",
+										"{{brandId}}"
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Models",
+					"item": [
+						{
+							"name": "List Models",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/models?brandId={{brandId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"models"
+									],
+									"query": [
+										{
+											"key": "brandId",
+											"value": "{{brandId}}",
+											"description": "Optional filter by brand"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Model",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/models/{{modelId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"models",
+										"{{modelId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Model",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"brandId\": {{brandId}},\n  \"name\": \"Corolla\"\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/models",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"models"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200 || pm.response.code === 201) {",
+											"  const json = pm.response.json();",
+											"  if (json.modelId != null) {",
+											"    pm.collectionVariables.set('modelId', String(json.modelId));",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Update Model",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Corolla\"\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/models/{{modelId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"models",
+										"{{modelId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Model",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/models/{{modelId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"models",
+										"{{modelId}}"
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Colors",
+					"item": [
+						{
+							"name": "List Colors",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/colors",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"colors"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Color",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/colors/{{colorId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"colors",
+										"{{colorId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Color",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Silver\"\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/colors",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"colors"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200 || pm.response.code === 201) {",
+											"  const json = pm.response.json();",
+											"  if (json.colorId != null) {",
+											"    pm.collectionVariables.set('colorId', String(json.colorId));",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Update Color",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Silver\"\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/colors/{{colorId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"colors",
+										"{{colorId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Color",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/colors/{{colorId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"colors",
+										"{{colorId}}"
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Years",
+					"item": [
+						{
+							"name": "List Years",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/years",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"years"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Year",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/years/{{yearId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"years",
+										"{{yearId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Year",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"year\": 2024\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/years",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"years"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200 || pm.response.code === 201) {",
+											"  const json = pm.response.json();",
+											"  if (json.yearId != null) {",
+											"    pm.collectionVariables.set('yearId', String(json.yearId));",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Update Year",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"year\": 2024\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/years/{{yearId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"years",
+										"{{yearId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Year",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/years/{{yearId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"years",
+										"{{yearId}}"
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Cars",
+					"item": [
+						{
+							"name": "List Cars",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/cars?status=AVAILABLE&q=&page=0&size=20&sort=price,asc",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"cars"
+									],
+									"query": [
+										{
+											"key": "status",
+											"value": "AVAILABLE",
+											"description": "AVAILABLE or SOLD"
+										},
+										{
+											"key": "q",
+											"value": "",
+											"description": "Optional search text"
+										},
+										{
+											"key": "page",
+											"value": "0"
+										},
+										{
+											"key": "size",
+											"value": "20"
+										},
+										{
+											"key": "sort",
+											"value": "price,asc"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Car",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/cars/{{carId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"cars",
+										"{{carId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Car",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"brandId\": {{brandId}},\n  \"modelId\": {{modelId}},\n  \"colorId\": {{colorId}},\n  \"yearId\": {{yearId}},\n  \"price\": 89990.00\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/cars",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"cars"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200 || pm.response.code === 201) {",
+											"  const json = pm.response.json();",
+											"  if (json.carId != null) {",
+											"    pm.collectionVariables.set('carId', String(json.carId));",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Update Car",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"brandId\": {{brandId}},\n  \"modelId\": {{modelId}},\n  \"colorId\": {{colorId}},\n  \"yearId\": {{yearId}},\n  \"price\": 87990.00\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/cars/{{carId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"cars",
+										"{{carId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Car",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/cars/{{carId}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"cars",
+										"{{carId}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Purchase Car",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/cars/{{carId}}/purchase",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"cars",
+										"{{carId}}",
+										"purchase"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"  const json = pm.response.json();",
+											"  if (json.paymentCode) {",
+											"    pm.collectionVariables.set('paymentCode', json.paymentCode);",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Payment Processor Token",
+							"request": {
+								"auth": {
+									"type": "noauth"
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/x-www-form-urlencoded"
+									}
+								],
+								"body": {
+									"mode": "urlencoded",
+									"urlencoded": [
+										{
+											"key": "grant_type",
+											"value": "client_credentials",
+											"type": "text"
+										},
+										{
+											"key": "client_id",
+											"value": "{{paymentClientId}}",
+											"type": "text"
+										},
+										{
+											"key": "client_secret",
+											"value": "{{paymentClientSecret}}",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://keycloak.localhost/realms/fiap-car-sales/protocol/openid-connect/token",
+									"protocol": "http",
+									"host": [
+										"keycloak",
+										"localhost"
+									],
+									"path": [
+										"realms",
+										"fiap-car-sales",
+										"protocol",
+										"openid-connect",
+										"token"
+									]
+								},
+								"description": "Client credentials of payment-processor. Saves access_token into paymentAccessToken."
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"  const json = pm.response.json();",
+											"  if (json.access_token) {",
+											"    pm.collectionVariables.set('paymentAccessToken', json.access_token);",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Confirm Payment",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{paymentAccessToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"status\": \"PAID\"\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/payments/{{paymentCode}}",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"payments",
+										"{{paymentCode}}"
+									]
+								},
+								"description": "Uses the payment-processor client-credentials token. CANCELLED returns the car to AVAILABLE."
+							}
+						},
+						{
+							"name": "Create Photo Upload Intent",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/cars/{{carId}}/photos/upload-intent",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"cars",
+										"{{carId}}",
+										"photos",
+										"upload-intent"
+									]
+								}
+							},
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"type": "text/javascript",
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"  const json = pm.response.json();",
+											"  if (json.objectKey) {",
+											"    pm.collectionVariables.set('objectKey', json.objectKey);",
+											"  }",
+											"  if (json.intentToken) {",
+											"    pm.collectionVariables.set('intentToken', json.intentToken);",
+											"  }",
+											"}"
+										]
+									}
+								}
+							]
+						},
+						{
+							"name": "Complete Photo Upload",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"objectKey\": \"{{objectKey}}\",\n  \"intentToken\": \"{{intentToken}}\",\n  \"sortOrder\": 0\n}"
+								},
+								"url": {
+									"raw": "{{dealershipBaseUrl}}/cars/{{carId}}/photos/complete",
+									"host": [
+										"{{dealershipBaseUrl}}"
+									],
+									"path": [
+										"cars",
+										"{{carId}}",
+										"photos",
+										"complete"
+									]
+								}
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,47 @@
+name: Account CI
+
+on:
+  push:
+    paths:
+      - 'backends/account-api/**'
+      - '.github/workflows/account-ci.yml'
+  pull_request:
+    paths:
+      - 'backends/account-api/**'
+      - '.github/workflows/account-ci.yml'
+
+concurrency:
+  group: account-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backends/account-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Verify
+        run: ./mvnw -B verify
+
+  docker:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backends/account-api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker build
+        run: docker build -t fiapf3-account:ci .
