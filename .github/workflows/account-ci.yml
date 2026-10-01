@@ -21,7 +21,7 @@ jobs:
       run:
         working-directory: backends/account-api
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -39,7 +39,7 @@ jobs:
       run:
         working-directory: backends/account-api
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Docker build
         run: docker build -t fiapf3-account:ci .
 
@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate dev Compose
         run: docker compose -f infra/compose/services.dev.yml --env-file infra/compose/.env.example config --quiet
       - name: Validate prod Compose
