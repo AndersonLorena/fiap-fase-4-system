@@ -455,7 +455,7 @@ Os testes de Web API sobem a aplicação em porta aleatória e exercitam os endp
 
 ### CI
 
-O GitHub Actions (`account-ci`) executa `./mvnw verify` e gera a imagem Docker local `fiapf3-account:ci` a cada alteração relevante em PR/push — **sem** publicar no registry. O `dealership-ci` roda no outro repositório.
+O GitHub Actions (`account-ci`) roda em pull request para a `main` e no merge nessa branch: `./mvnw verify`, build local `fiapf3-account:ci` e validação dos Composes dev/prod — **sem** publicar no registry. O `dealership-ci` roda no outro repositório.
 
 ### CD (GHCR)
 

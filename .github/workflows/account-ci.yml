@@ -1,14 +1,10 @@
 name: Account CI
 
 on:
-  push:
-    paths:
-      - 'backends/account-api/**'
-      - '.github/workflows/account-ci.yml'
   pull_request:
-    paths:
-      - 'backends/account-api/**'
-      - '.github/workflows/account-ci.yml'
+    branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
   group: account-ci-${{ github.workflow }}-${{ github.ref }}
@@ -31,6 +27,7 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+          cache-dependency-path: backends/account-api/pom.xml
       - name: Verify
         run: ./mvnw -B verify
 
@@ -45,3 +42,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Docker build
         run: docker build -t fiapf3-account:ci .
+
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate dev Compose
+        run: docker compose -f infra/compose/services.dev.yml --env-file infra/compose/.env.example config --quiet
+      - name: Validate prod Compose
+        run: docker compose -f infra/compose/services.prod.yml --env-file infra/compose/.env.prod.example config --quiet
