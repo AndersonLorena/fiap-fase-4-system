@@ -244,54 +244,6 @@ services:
       keycloak:
         condition: service_healthy
 
-  dealership:
-    build:
-      context: ../../backends/dealership-api
-      dockerfile: Dockerfile
-    # LTS used to run the project: Eclipse Temurin Java 21 (Dockerfile runtime; Temurin support until at least Dec 2029).
-    image: fiapf3-dealership:dev
-    container_name: fiapf3-dealership
-    restart: unless-stopped
-    cpus: 1.0
-    mem_limit: 1g
-    networks:
-      - fiapf3-dev-net
-    environment:
-      SPRING_PROFILES_ACTIVE: docker
-      SERVER_PORT: 8080
-      TZ: America/Sao_Paulo
-      DB_URL: jdbc:postgresql://postgresql:5432/fiapf3_dealership
-      DB_USERNAME: fiapf3
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-fiapf3}
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-fiapf3}
-      GARAGE_ENDPOINT: ${GARAGE_ENDPOINT:-http://garage:3900}
-      GARAGE_PUBLIC_ENDPOINT: ${GARAGE_PUBLIC_ENDPOINT:-http://localhost}
-      GARAGE_REGION: garage
-      GARAGE_BUCKET: ${GARAGE_BUCKET:-fiapf3-vehicle-photos}
-      GARAGE_ACCESS_KEY: ${GARAGE_ACCESS_KEY}
-      GARAGE_SECRET_KEY: ${GARAGE_SECRET_KEY}
-      UPLOAD_INTENT_SECRET: ${UPLOAD_INTENT_SECRET}
-      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://keycloak:8080}
-      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-fiap-car-sales}
-      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_DEALERSHIP_CLIENT_ID:-dealership-api}
-      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_DEALERSHIP_CLIENT_SECRET:-fiapf3-dealership-client-secret}
-      ACCOUNT_API_URL: ${ACCOUNT_API_URL:-http://account:8080}
-      DEALERSHIP_PAYMENT_ALLOWED_CLIENT_IDS: ${DEALERSHIP_PAYMENT_ALLOWED_CLIENT_IDS:-payment-processor}
-      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost}
-    depends_on:
-      postgresql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      garage:
-        condition: service_healthy
-      keycloak:
-        condition: service_healthy
-      account:
-        condition: service_started
-
   nginx:
     # Version used to run the project: nginx 1.30 Alpine (stable even branch; digest already pinned).
     image: nginx:1.30.4-alpine@sha256:97d490c12ba55b4946b01546d1c3ed324e8d41ab1c9fcb2a616aa470620e5b46
@@ -308,8 +260,6 @@ services:
       - ../confs/nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
       account:
-        condition: service_started
-      dealership:
         condition: service_started
       garage:
         condition: service_healthy
@@ -345,8 +295,6 @@ services:
       - --web.enable-lifecycle
     depends_on:
       account:
-        condition: service_started
-      dealership:
         condition: service_started
       keycloak:
         condition: service_healthy

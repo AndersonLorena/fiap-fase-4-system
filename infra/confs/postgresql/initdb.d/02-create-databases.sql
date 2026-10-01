@@ -1,7 +1,5 @@
 CREATE DATABASE fiapf3_account;
-CREATE DATABASE fiapf3_dealership;
 CREATE DATABASE keycloak;
 
 GRANT ALL PRIVILEGES ON DATABASE fiapf3_account TO fiapf3;
-GRANT ALL PRIVILEGES ON DATABASE fiapf3_dealership TO fiapf3;
 GRANT ALL PRIVILEGES ON DATABASE keycloak TO fiapf3;

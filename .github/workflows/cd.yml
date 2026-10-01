@@ -5,19 +5,8 @@ on:
     branches: [main]
     paths:
       - 'backends/account-api/**'
-      - 'backends/dealership-api/**'
       - '.github/workflows/cd.yml'
   workflow_dispatch:
-    inputs:
-      component:
-        description: Which image(s) to publish
-        required: true
-        default: all
-        type: choice
-        options:
-          - all
-          - account
-          - dealership
 
 concurrency:
   group: cd-ghcr-${{ github.workflow }}-${{ github.ref }}
@@ -31,13 +20,9 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
-  resolve:
+  publish-account:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      account: ${{ steps.set.outputs.account }}
-      dealership: ${{ steps.set.outputs.dealership }}
-      owner: ${{ steps.meta.outputs.owner }}
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -45,43 +30,6 @@ jobs:
         id: meta
         run: echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
-      - uses: dorny/paths-filter@v3
-        id: filter
-        if: github.event_name == 'push'
-        with:
-          filters: |
-            account:
-              - 'backends/account-api/**'
-              - '.github/workflows/cd.yml'
-            dealership:
-              - 'backends/dealership-api/**'
-              - '.github/workflows/cd.yml'
-
-      - name: Resolve components
-        id: set
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            component="${{ github.event.inputs.component }}"
-            account=false; dealership=false
-            case "$component" in
-              all) account=true; dealership=true ;;
-              account) account=true ;;
-              dealership) dealership=true ;;
-            esac
-          else
-            account="${{ steps.filter.outputs.account }}"
-            dealership="${{ steps.filter.outputs.dealership }}"
-          fi
-          echo "account=$account" >> "$GITHUB_OUTPUT"
-          echo "dealership=$dealership" >> "$GITHUB_OUTPUT"
-
-  publish-account:
-    needs: resolve
-    if: needs.resolve.outputs.account == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -94,31 +42,7 @@ jobs:
           file: backends/account-api/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ needs.resolve.outputs.owner }}/fiapf3-account:latest
-            ${{ env.REGISTRY }}/${{ needs.resolve.outputs.owner }}/fiapf3-account:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/fiapf3-account:latest
+            ${{ env.REGISTRY }}/${{ steps.meta.outputs.owner }}/fiapf3-account:${{ github.sha }}
           cache-from: type=gha,scope=fiapf3-account
           cache-to: type=gha,mode=max,scope=fiapf3-account
-
-  publish-dealership:
-    needs: resolve
-    if: needs.resolve.outputs.dealership == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
-        with:
-          context: backends/dealership-api
-          file: backends/dealership-api/Dockerfile
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ needs.resolve.outputs.owner }}/fiapf3-dealership:latest
-            ${{ env.REGISTRY }}/${{ needs.resolve.outputs.owner }}/fiapf3-dealership:${{ github.sha }}
-          cache-from: type=gha,scope=fiapf3-dealership
-          cache-to: type=gha,mode=max,scope=fiapf3-dealership

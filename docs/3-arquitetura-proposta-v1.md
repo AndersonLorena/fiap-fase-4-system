@@ -1,8 +1,10 @@
 # Arquitetura proposta — FIAP Car Sales (account-api + dealership-api)
 
+O código está em dois repositórios. **`fiap-fase-4-system`** (este, quando lido a partir da account) guarda a `account-api`, o Nginx e a infra compartilhada, inclusive o Postgres de `fiapf3_account` e `keycloak`. **`fiap-fase-4-dealership`** guarda a `dealership-api` e o Postgres de `fiapf3_dealership`. Os dois Composes usam a rede `fiapf3-dev-net` / `fiapf3-prod-net`. O acesso externo não muda: `http://localhost/api/account/...` e `http://localhost/api/dealership/...` no Nginx da account. A lógica das APIs, os paths e os hostnames `account`, `dealership`, `redis`, `garage` e `keycloak` permanecem.
+
 ## 1. Objetivo
 
-Este documento descreve a arquitetura proposta e o planejamento detalhado de implementação dos backends da plataforma de revenda de veículos (FIAP Fase 3):
+Este documento descreve a arquitetura proposta e o planejamento detalhado de implementação dos backends da plataforma de revenda de veículos (FIAP Fase 4):
 
 - **Parte I — `account-api`:** ciclo de vida de conta e autenticação.
 - **Parte II — `dealership-api`:** catálogo, veículos, listagem, compra e fotos.
@@ -30,7 +32,7 @@ A solução utiliza:
 
 Referências:
 
-- [Especificação do desafio](./0-fiap-fase-3.md)
+- [Especificação do desafio](./0-fiap-fase-4.md)
 - [Documento de arquitetura final](./2-documento-de-arquitetura-final.png)
 - [Rascunho de arquitetura inicial](./1-rascunho-de-arquitetura-inicial.png)
 - Realm Keycloak: [`infra/confs/keycloak/import/fiap-car-sales-realm.json`](../infra/confs/keycloak/import/fiap-car-sales-realm.json)
@@ -579,16 +581,17 @@ Métricas prioritárias:
 
 ## 14. Implantação e escalabilidade
 
-Infra já prevista em [`infra/compose/services.dev.yml`](../infra/compose/services.dev.yml):
+Infra da account em [`infra/compose/services.dev.yml`](../infra/compose/services.dev.yml):
 
 - serviço `account` com profile `docker`, porta `8080`;
-- `DB_URL` → `fiapf3_account`;
+- `DB_URL` → `fiapf3_account` no Postgres deste repositório (o database `fiapf3_dealership` não é criado aqui);
 - Redis, Keycloak, Resend e `PASSWORD_RECOVERY_URL`;
-- `depends_on` healthy de PostgreSQL, Redis e Keycloak.
+- `depends_on` healthy de PostgreSQL, Redis e Keycloak;
+- Nginx na rede `fiapf3-dev-net`, resolvendo `dealership:8080` em tempo de request quando o Compose de `fiap-fase-4-dealership` entra nessa rede.
 
 Empacotamento (as-built):
 
-- `Dockerfile` multi-stage Distroless em `backends/account-api` e `backends/dealership-api`;
+- `Dockerfile` multi-stage Distroless em `backends/account-api` (o da `dealership-api` está no repositório `fiap-fase-4-dealership`);
 - `application-docker.properties` mapeando env vars do Compose;
 - H2 apenas para testes; runtime Docker usa PostgreSQL.
 
@@ -705,7 +708,7 @@ Orquestração: ports driven + domínio; `@Transactional` apenas onde a unidade 
 
 ## 16. Atendimento aos requisitos (Parte I)
 
-| Requisito ([0-fiap-fase-3.md](./0-fiap-fase-3.md)) | Como a account-api atende |
+| Requisito ([0-fiap-fase-4.md](./0-fiap-fase-4.md)) | Como a account-api atende |
 |---|---|
 | Cadastro de comprador antes da compra | `POST /api/v1/accounts` + usuário Keycloak `CUSTOMER` |
 | Registro/autorização separados dos dados de venda | Serviço e banco próprios; Keycloak como IdP; sem acesso a `fiapf3_dealership` |
@@ -732,7 +735,7 @@ A listagem/compra de veículos é detalhada na **Parte II** (`dealership-api`).
 13. Exigir testes REST Assured de ponta a ponta para cada endpoint novo ou alterado.
 14. Empacotar com Dockerfile alinhado ao Compose existente e observar via Actuator/Prometheus/Grafana.
 
-Com essas decisões, o planejamento da `account-api` cobre a implementação backend dos fluxos de conta/identidade, alinhada ao diagrama final e ao requisito de identidade separada da Fase 3.
+Com essas decisões, o planejamento da `account-api` cobre a implementação backend dos fluxos de conta/identidade, alinhada ao diagrama final e ao requisito de identidade separada da Fase 4.
 
 ---
 
@@ -740,7 +743,7 @@ Com essas decisões, o planejamento da `account-api` cobre a implementação bac
 
 ## 18. Objetivo (dealership-api)
 
-Planejamento detalhado do backend da **`dealership-api`** em [`backends/dealership-api`](../backends/dealership-api):
+Planejamento detalhado do backend da **`dealership-api`**, cujo código está no repositório `fiap-fase-4-dealership` (`backends/dealership-api`):
 
 - CRUD de catálogo: `brands`, `models`, `colors`, `years`;
 - CRUD de veículos (`cars`) com listagem paginada, pesquisa e ordenação;
