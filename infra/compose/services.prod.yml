@@ -206,7 +206,7 @@ services:
 
   account:
     # LTS used to run the project: Eclipse Temurin Java 21 (Dockerfile runtime; Temurin support until at least Dec 2029).
-    image: ghcr.io/${GHCR_OWNER}/fiapf3-account:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER}/fiap-fase-4-account:${IMAGE_TAG:-latest}
     pull_policy: always
     container_name: fiapf3-prod-account
     restart: unless-stopped

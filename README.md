@@ -112,8 +112,8 @@ Tags e versões validadas para rodar o projeto, alinhadas a [`infra/compose/serv
 | `redis` | `redis:7-alpine` | LTS: Redis 7 (Open Source 7.x; 7.2 e 7.4 são as linhas extended/LTS) |
 | `garage` | `dxflrs/garage:v2.3.0` | Sem LTS oficial: Garage v2.3.0 |
 | `keycloak` | `quay.io/keycloak/keycloak:26.7.1` | Sem LTS da comunidade: Keycloak 26.7.1 |
-| `account` | `fiapf3-account:dev` / GHCR | LTS: Eclipse Temurin Java 21 (runtime do Dockerfile; suporte Temurin até pelo menos dez/2029) |
-| `dealership` | `fiapf3-dealership:dev` / GHCR (repositório `fiap-fase-4-dealership`) | LTS: Eclipse Temurin Java 21 (runtime do Dockerfile; suporte Temurin até pelo menos dez/2029) |
+| `account` | `fiapf3-account:dev` / GHCR `fiap-fase-4-account` | LTS: Eclipse Temurin Java 21 (runtime do Dockerfile; suporte Temurin até pelo menos dez/2029) |
+| `dealership` | `fiapf3-dealership:dev` / GHCR `fiap-fase-4-dealership` (repositório `fiap-fase-4-dealership`) | LTS: Eclipse Temurin Java 21 (runtime do Dockerfile; suporte Temurin até pelo menos dez/2029) |
 | `nginx` | `nginx:1.30.4-alpine` (digest pinado) | nginx 1.30 Alpine (ramo estável par) |
 | `prometheus` | `prom/prometheus:v3.2.1` | Sem LTS oficial: Prometheus v3.2.1 |
 | `grafana` | `grafana/grafana:12.4.8` | Sem LTS oficial: Grafana 12.4.8 (último minor da série 12; patch até mai/2027) |
@@ -133,7 +133,7 @@ fiap-fase-4-system/
 │   ├── compose/             # Compose dev/prod + .env.example / .env.prod.example
 │   └── confs/               # Nginx, Postgres, Keycloak, Garage, Prometheus, Grafana
 ├── docs/                    # Brief, arquitetura, Postman collection
-└── .github/workflows/       # account-ci e CD (imagem fiapf3-account)
+└── .github/workflows/       # account-ci e CD (imagem fiap-fase-4-account no GHCR)
 ```
 
 ---
@@ -463,9 +463,9 @@ O workflow `[cd.yml](./.github/workflows/cd.yml)` publica Continuous Delivery **
 
 Imagem publicada por este repositório:
 
-- `ghcr.io/<owner>/fiapf3-account:latest` e `:<sha>`
+- `ghcr.io/<owner>/fiap-fase-4-account:latest` e `:<sha>`
 
-`ghcr.io/<owner>/fiapf3-dealership` é publicada pelo repositório `fiap-fase-4-dealership`.
+`ghcr.io/<owner>/fiap-fase-4-dealership` é publicada pelo repositório `fiap-fase-4-dealership`.
 
 Se os pacotes forem privados, autentique o Docker no host que for fazer pull:
 
